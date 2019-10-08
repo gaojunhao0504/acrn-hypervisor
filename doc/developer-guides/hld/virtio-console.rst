@@ -72,7 +72,7 @@ device model: STDIO, TTY, PTY and regular file.
 The device model configuration command syntax for virtio-console is::
 
    virtio-console,[@]stdio|tty|pty|file:portname[=portpath]\
-      [,[@]stdio|tty|pty|file:portname[=portpath]]
+      [,[@]stdio|tty|pty|file:portname[=portpath][:socket_type]]
 
 -  Preceding with ``@`` marks the port as a console port, otherwise it is a
    normal virtio serial port
@@ -85,6 +85,9 @@ The device model configuration command syntax for virtio-console is::
 -  When tty is used, please make sure the redirected tty is sleeping,
    (e.g., by ``sleep 2d`` command), and will not read input from stdin before it
    is used by virtio-console to redirect guest output.
+
+-  When virtio-console socket_type is appointed to client, please make sure
+   server VM(socket_type is appointed to server) has started.
 
 -  Claiming multiple virtio serial ports as consoles is supported,
    however the guest Linux OS will only use one of them, through the
@@ -198,3 +201,31 @@ The File backend only supports console output to a file (no input).
 #. Add the console parameter to the guest OS kernel command line::
 
       console=hvc0
+
+SOCKET
+======
+
+When virtio-console socket_type is appointed to server, device model
+will create a unix domain socket for server VM to bind and listen.
+Then other VM virtio-console socket_type is set to client, these
+VM can connect to the unix domain socket and communicate with server VM.
+
+1. Add a pci slot to the device model (``acrn-dm``) command line, adjusting
+   the ``</path/to/file.sock>`` to your use case in the VM1 configuration::
+
+      -s n,virtio-console,socket:socket_file_name=</path/to/file.sock>:server
+
+#. Add a pci slot to the device model (``acrn-dm``) command line, adjusting
+   the ``</path/to/file.sock>`` to your use case in the VM2 configuration::
+
+      -s n,virtio-console,socket:socket_file_name=</path/to/file.sock>:client
+
+#. Login to VM1, check any input to the virtual port(vportnp0, n is decided
+   by your machine)::
+
+      cat /dev/vportnp
+
+#. Login to VM2, output to the virtual port(vportnp0, n is decided by your
+   machine)::
+
+      echo “message from vm2” > /dev/vportnp0
